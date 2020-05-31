@@ -1,0 +1,98 @@
+---
+title: 'COVID19 and GDP per Capita: RMarkdown and Plotly Project'
+author: "Aadil Nakhoda"
+date: "June 1, 2020"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(wbstats)
+library(plotly)
+
+```
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+      $('slide:not(.title-slide, .backdrop, .segue)').append('<footer label=\""></footer>');    
+    })
+</script>
+
+<style>
+  footer:after {
+    content: attr(label);
+    font-size: 12pt;
+    position: absolute;
+    bottom: 20px;
+    left: 60px;
+    line-height: 1.9;
+  }
+</style>
+
+## Data Description
+
+- The graph on the next page shows the relationship between income levels and reported COVID19 deaths plotted in plotly.
+
+- COVID19 data is downloaded from [Worldometer](https://www.worldometers.info/coronavirus/#countries).
+
+- Data on GDP per Capita is downloaded from World Bank's [World Development Indicators](http://datatopics.worldbank.org/world-development-indicators/)
+
+- Countries are classified into high, middle and low income countries as per [World Bank's classifications by income levels](https://blogs.worldbank.org/opendata/new-country-classifications-income-level-2019-2020).
+
+- The data was collected on `r format(Sys.Date(), "%B %d, %Y")`.
+
+
+---
+```{r,echo=F, message=F, warning=F}
+suppressPlotlyMessage <- function(p) {
+  suppressMessages(plotly_build(p))
+}
+
+
+setwd("E:/Coursera/Developing Data Products/Week 3/Assignment/")
+corona <- read.csv("corona_cases_1stjune.csv")
+country_codes <- read.csv("worldbank_countrycodes_corona.csv")
+income_class <- read.csv("income_class.csv")
+gdp_per_capita <- wb(indicator = "NY.GDP.PCAP.CD", startdate = 2018, enddate = 2018)
+
+
+
+names(gdp_per_capita)[names(gdp_per_capita) == "iso3c"] <- "countrycode"
+names(gdp_per_capita)[names(gdp_per_capita) == "country"] <- "classification"
+income_class$Income_Class <- "Other Regions"
+income_class$Income_Class[grep("Low income", income_class$GroupName)] <- "Low Income"
+income_class$Income_Class[grep("middle", income_class$GroupName)] <- "Middle Income"
+income_class$Income_Class[grep("High", income_class$GroupName)] <- "High Income"
+
+
+corona_data <- merge(corona,country_codes,by="countryname")
+corona_data <- merge(corona_data,gdp_per_capita,by="countrycode")
+corona_data <- merge(corona_data,income_class,by="countrycode")
+
+corna_data <- merge(corona_data,income_class,by="countrycode")
+names(corona_data)[names(corona_data) == "value"] <- "gdp_per_capita"
+
+
+
+corona_data$Deathsper1m <- as.numeric(as.character(corona_data$Deathsper1m) )
+corona_data$Population <- as.numeric(as.character(corona_data$Population) )
+
+corona.df <- as.data.frame.matrix(corona_data)
+
+corona.df$hover <- with(corona.df, paste(countryname, '<br>', "Total Deaths:", Totaldeaths))
+
+p<- plot_ly(corona.df, x=~log(gdp_per_capita), y=~Deathsper1m, color=~Income_Class, size=~Totaldeaths, text=~corona.df$hover, type="scatter", mode="markers", hoverinfo="text")
+
+x <- list(
+  title = "GDP per Capita (log)")
+
+y <- list(
+  title = "Deaths per 1 million Population")
+
+p<- p %>%layout(
+    title = "COVID19 Deaths and GDP per Capita", xaxis=x, yaxis=y)
+p
+
+```
